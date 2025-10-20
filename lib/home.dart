@@ -1,10 +1,32 @@
+import 'dart:io';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'custom_bottom.dart';
 import 'profile.dart';
 import 'custom_drawer.dart';
+import 'user.dart';
+import 'database.dart';
 
-class HomePage extends StatelessWidget {
+class HomePage extends StatefulWidget {
   const HomePage({super.key});
+
+  @override
+  State<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends State<HomePage> {
+  final dbService = DatabaseService();
+
+  // ✅ Fetch user data once using shared preferences
+  Future<Users?> getUser() async {
+    final prefs = await SharedPreferences.getInstance();
+    final String? uid = prefs.getString("userID");
+    if (uid != null && uid.isNotEmpty) {
+      return dbService.getUserByUID(uid);
+    }
+    return null;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -17,102 +39,158 @@ class HomePage extends StatelessWidget {
         foregroundColor: Colors.black,
         elevation: 0,
         actions: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12.0),
-            child: GestureDetector(
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const ProfilePage()),
+          // ✅ FutureBuilder for profile avatar
+          FutureBuilder<Users?>(
+            future: getUser(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Padding(
+                  padding: EdgeInsets.all(12),
+                  child: CircleAvatar(
+                    backgroundColor: Colors.grey,
+                    radius: 16,
+                  ),
                 );
-              },
-              child: const CircleAvatar(
-                backgroundImage: AssetImage("assets/profile.jpg"), // replace with user avatar
-                radius: 16,
-              ),
-            ),
+              }
+
+              if (!snapshot.hasData || snapshot.data == null) {
+                // no user data yet
+                return Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  child: GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const ProfilePage()),
+                      );
+                    },
+                    child: const CircleAvatar(
+                      backgroundColor: Colors.pink,
+                      radius: 16,
+                      child: Icon(Icons.person, color: Colors.white, size: 18),
+                    ),
+                  ),
+                );
+              }
+
+              final user = snapshot.data!;
+              return Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: GestureDetector(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const ProfilePage()),
+                    );
+                  },
+                  child: CircleAvatar(
+                    radius: 16,
+                    backgroundImage: user.profileImgPath != null &&
+                        user.profileImgPath!.isNotEmpty
+                        ? (user.profileImgPath!.startsWith('assets/')
+                        ? AssetImage(user.profileImgPath!)
+                    as ImageProvider
+                        : FileImage(File(user.profileImgPath!)))
+                        : const AssetImage('assets/images/profile/profile.png'),
+                  ),
+                ),
+              );
+            },
           ),
         ],
       ),
 
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              "Hello Kelly",
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w400),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              "16th Week of Pregnancy",
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
+      // ✅ Entire body uses FutureBuilder so you can show username
+      body: FutureBuilder<Users?>(
+        future: getUser(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
 
-            // --- Pregnancy Summary Card ---
-            Card(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-              elevation: 1,
-              child: Padding(
-                padding: const EdgeInsets.all(20.0),
-                child: Column(
-                  children: [
-                    Row(
-                      children: const [
-                        CircleAvatar(
-                          backgroundColor: Color(0xFFFDE2E2),
-                          child: Icon(Icons.favorite, color: Colors.pink),
+          final user = snapshot.data;
+          final username = user?.userName ?? "";
+
+          return SingleChildScrollView(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  "Welcome, $username 👋",
+                  style: const TextStyle(
+                      fontSize: 24, fontWeight: FontWeight.w400),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  "16th Week of Pregnancy",
+                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+
+                // --- Pregnancy Summary Card ---
+                Card(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  elevation: 1,
+                  child: Padding(
+                    padding: const EdgeInsets.all(20.0),
+                    child: Column(
+                      children: [
+                        Row(
+                          children: const [
+                            CircleAvatar(
+                              backgroundColor: Color(0xFFFDE2E2),
+                              child: Icon(Icons.favorite, color: Colors.pink),
+                            ),
+                            SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                "Your baby is the size of a pear",
+                                style: TextStyle(fontSize: 16),
+                              ),
+                            ),
+                          ],
                         ),
-                        SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            "Your baby is the size of a pear",
-                            style: TextStyle(fontSize: 16),
-                          ),
+                        const SizedBox(height: 20),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceAround,
+                          children: const [
+                            _StatColumn(title: "Baby Height", value: "17 cm"),
+                            _StatColumn(title: "Baby Weight", value: "110 gr"),
+                            _StatColumn(title: "Days Left", value: "168 days"),
+                          ],
                         ),
                       ],
                     ),
-                    const SizedBox(height: 20),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceAround,
-                      children: const [
-                        _StatColumn(title: "Baby Height", value: "17 cm"),
-                        _StatColumn(title: "Baby Weight", value: "110 gr"),
-                        _StatColumn(title: "Days Left", value: "168 days"),
-                      ],
-                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 24),
+
+                // --- Feature Grid ---
+                GridView.count(
+                  crossAxisCount: 2,
+                  shrinkWrap: true,
+                  crossAxisSpacing: 12,
+                  mainAxisSpacing: 12,
+                  physics: const NeverScrollableScrollPhysics(),
+                  children: const [
+                    _FeatureCard(icon: Icons.chat, title: "Chat Room"),
+                    _FeatureCard(icon: Icons.alarm, title: "Reminder"),
+                    _FeatureCard(icon: Icons.mood, title: "Mood"),
+                    _FeatureCard(icon: Icons.smart_toy, title: "AI Chatbot"),
+                    _FeatureCard(icon: Icons.article, title: "Articles"),
+                    _FeatureCard(icon: Icons.local_hospital, title: "Confinement\n     Center"),
                   ],
                 ),
-              ),
-            ),
-
-            const SizedBox(height: 24),
-
-            // --- Feature Grid ---
-            GridView.count(
-              crossAxisCount: 2,
-              shrinkWrap: true,
-              crossAxisSpacing: 12,
-              mainAxisSpacing: 12,
-              physics: const NeverScrollableScrollPhysics(),
-              children: const [
-                _FeatureCard(icon: Icons.chat, title: "Chat Room"),
-                _FeatureCard(icon: Icons.alarm, title: "Reminder"),
-                _FeatureCard(icon: Icons.mood, title: "Mood"),
-                _FeatureCard(icon: Icons.smart_toy, title: "AI Chatbot"),
-                _FeatureCard(icon: Icons.article, title: "Articles"),
-                _FeatureCard(icon: Icons.local_hospital, title: "Confinement Center"),
               ],
             ),
-          ],
-        ),
+          );
+        },
       ),
 
-      // ✅ Reusable bottom navigation
       bottomNavigationBar: const CustomBottomNav(selectedIndex: 0),
     );
   }

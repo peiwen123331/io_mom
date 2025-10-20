@@ -1,11 +1,14 @@
 import 'dart:async';
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:io_mom/database.dart';
 import 'package:io_mom/reset_password.dart';
 import 'home.dart';
 import 'login_page.dart';
+import 'smtp_service.dart';
 import 'user.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class OtpPage extends StatefulWidget {
   final String email;
@@ -33,6 +36,7 @@ class _OtpPageState extends State<OtpPage> {
   int _attempts = 0;
   int _secondsLeft = 60;
   Timer? _timer;
+  late String expectedOTP = widget.expectedOtp;
 
   @override
   void initState() {
@@ -52,6 +56,12 @@ class _OtpPageState extends State<OtpPage> {
   String get _enteredOtp =>
       _otpControllers.map((controller) => controller.text).join();
 
+  //save in to user sharedPreference
+  Future<void> saveUserID(String userID) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('userID', userID);
+  }
+
   Future<void> _verifyOtp() async {
     final entered = _enteredOtp.trim();
     late Users users;
@@ -62,7 +72,7 @@ class _OtpPageState extends State<OtpPage> {
       return;
     }
 
-    if (entered == widget.expectedOtp) {
+    if (entered == expectedOTP) {
       if (!mounted) return;
 
       if (widget.isFrom == "Register") {
@@ -78,6 +88,9 @@ class _OtpPageState extends State<OtpPage> {
             userID: uid,
             userName: "",
             userEmail: widget.email,
+            userRegDate: DateTime.timestamp(),
+            phoneNo: "",
+            userStatus: "A",
             profileImgPath: "",
           );
 
@@ -97,10 +110,24 @@ class _OtpPageState extends State<OtpPage> {
           }
         }
       } else if (widget.isFrom == "Login") {
+        User? user = FirebaseAuth.instance.currentUser;
+
+        if (user != null) {
+          String uid = user.uid;
+          print("Current UID: $uid");
+
+          // save uid to SharedPreference
+          await saveUserID(uid);
+
+        } else {
+          print("No user is logged in");
+        }
+
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (_) => const HomePage()),
         );
+
       } else if (widget.isFrom == "ResetPassword") {
         Navigator.pushAndRemoveUntil(
           context,
@@ -121,11 +148,21 @@ class _OtpPageState extends State<OtpPage> {
       }
     }
   }
+  // OTP generator
+  String generateOtp() {
+    final random = Random();
+    return (100000 + random.nextInt(900000)).toString();
+  }
 
   Future<void> _requestOtp() async {
     _startCooldown();
+    final otp = generateOtp();
+    await sendOtpEmail(widget.email, otp);
     await _showDialog(
         "OTP Sent", "A new OTP has been sent to ${widget.email}.");
+    setState(() {
+      expectedOTP = otp;
+    });
   }
 
   void _startCooldown() {

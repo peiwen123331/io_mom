@@ -1,7 +1,7 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'database.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'otp_page.dart';
 import 'smtp_service.dart';
 
@@ -16,13 +16,13 @@ class _RegisterPageState extends State<RegisterPage> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
-  final dbService = DatabaseService();
 
   bool _loading = false;
   String? _passwordError;
   String? _emailError;
+  bool _obscurePassword = true;
+  bool _obscureConfirmPassword = true;
 
-  // OTP generator
   String generateOtp() {
     final random = Random();
     return (100000 + random.nextInt(900000)).toString();
@@ -40,19 +40,6 @@ class _RegisterPageState extends State<RegisterPage> {
     return errors;
   }
 
-  // Check user existence in real time
-  Future<void> checkUserExistence(String email) async {
-    if (email.isEmpty) {
-      setState(() => _emailError = null);
-      return;
-    }
-    final user = await dbService.getUserByEmail(email);
-    setState(() {
-      _emailError = (user != null) ? "This email is already registered" : null;
-    });
-  }
-
-  // password validation
   void validatePasswordMatch() {
     final password = _passwordController.text;
     final confirm = _confirmPasswordController.text;
@@ -67,19 +54,33 @@ class _RegisterPageState extends State<RegisterPage> {
     }
   }
 
-  // Register function
   Future<void> _register() async {
     setState(() => _loading = true);
 
     final email = _emailController.text.trim();
     final password = _passwordController.text.trim();
+    final confirm = _confirmPasswordController.text.trim();
 
-    if (_emailError != null || _passwordError != null) {
+    if (email.isEmpty || password.isEmpty || confirm.isEmpty) {
+      await _showDialog("Error", "Please fill in all fields.");
+      setState(() => _loading = false);
+      return;
+    }
+
+    validatePasswordMatch();
+    if (_passwordError != null) {
       setState(() => _loading = false);
       return;
     }
 
     try {
+      // ✅ Try creating a Firebase account
+      await FirebaseAuth.instance.createUserWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+
+      // ✅ Send OTP after successful registration
       final otp = generateOtp();
       await sendOtpEmail(email, otp);
 
@@ -96,27 +97,46 @@ class _RegisterPageState extends State<RegisterPage> {
           ),
         ),
       );
+    } on FirebaseAuthException catch (e) {
+      // Handle common registration errors
+      if (e.code == 'email-already-in-use') {
+        await _showDialog(
+          'Registration Failed',
+          'This email is already registered. Please login instead.',
+        );
+      } else if (e.code == 'invalid-email') {
+        await _showDialog('Registration Failed', 'Invalid email format.');
+      } else if (e.code == 'weak-password') {
+        await _showDialog('Registration Failed', 'Password is too weak.');
+      } else {
+        await _showDialog('Error', e.message ?? 'Unknown error occurred.');
+      }
     } catch (e) {
-      showDialog(
-        context: context,
-        builder: (_) => AlertDialog(
-          title: const Text("Error"),
-          content: Text("Error: $e"),
-          actions: [
-            TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text("OK")),
-          ],
-        ),
-      );
+      await _showDialog('Error', 'Unexpected error: $e');
     } finally {
-      setState(() => _loading = false);
+      if (mounted) setState(() => _loading = false);
     }
+  }
+
+  Future<void> _showDialog(String title, String message) async {
+    await showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text(title),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("OK"),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final pink = const Color(0xFFE91E63);
+    const pink = Color(0xFFE91E63);
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -126,23 +146,21 @@ class _RegisterPageState extends State<RegisterPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              // Logo
-              Image.asset(
-                'assets/images/logo/logo.png', // Change this to your logo path
-                height: 120,
-              ),
+              Image.asset('assets/images/logo/logo.png', height: 120),
               const SizedBox(height: 16),
               const Text.rich(
                 TextSpan(
                   children: [
                     TextSpan(
-                        text: "Io",
-                        style: TextStyle(
-                            fontSize: 28, fontWeight: FontWeight.bold, color: Colors.black)),
+                      text: "Io",
+                      style: TextStyle(
+                          fontSize: 28, fontWeight: FontWeight.bold, color: Colors.black),
+                    ),
                     TextSpan(
-                        text: "Mom",
-                        style: TextStyle(
-                            fontSize: 28, fontWeight: FontWeight.bold, color: Colors.pink)),
+                      text: "Mom",
+                      style: TextStyle(
+                          fontSize: 28, fontWeight: FontWeight.bold, color: pink),
+                    ),
                   ],
                 ),
               ),
@@ -152,23 +170,23 @@ class _RegisterPageState extends State<RegisterPage> {
               ),
               const SizedBox(height: 32),
 
-              // Email
+              // Email field
               Align(
                 alignment: Alignment.centerLeft,
-                child: Text("Enter your email",
-                    style: TextStyle(
-                        color: Colors.black87, fontWeight: FontWeight.w500)),
+                child: const Text(
+                  "Enter your email",
+                  style: TextStyle(color: Colors.black87, fontWeight: FontWeight.w500),
+                ),
               ),
               const SizedBox(height: 6),
               TextField(
                 controller: _emailController,
                 keyboardType: TextInputType.emailAddress,
-                onChanged: checkUserExistence,
                 decoration: InputDecoration(
                   hintText: "example@gmail.com",
-                  errorText: _emailError,
                   border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12)),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
               ),
               const SizedBox(height: 16),
@@ -176,23 +194,32 @@ class _RegisterPageState extends State<RegisterPage> {
               // Password
               Align(
                 alignment: Alignment.centerLeft,
-                child: Text("Create your password",
-                    style: TextStyle(
-                        color: Colors.black87, fontWeight: FontWeight.w500)),
+                child: const Text(
+                  "Create your password",
+                  style: TextStyle(color: Colors.black87, fontWeight: FontWeight.w500),
+                ),
               ),
               const SizedBox(height: 6),
               TextField(
                 controller: _passwordController,
-                obscureText: true,
+                obscureText: _obscurePassword,
                 onChanged: (_) => validatePasswordMatch(),
                 inputFormatters: [
-                  FilteringTextInputFormatter.allow(
-                      RegExp(r'[a-zA-Z0-9$@!#.&_-]')),
+                  FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9$@!#.&_-]')),
                 ],
                 decoration: InputDecoration(
                   hintText: "********",
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                      color: Colors.grey,
+                    ),
+                    onPressed: () =>
+                        setState(() => _obscurePassword = !_obscurePassword),
+                  ),
                   border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12)),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
               ),
               const SizedBox(height: 16),
@@ -200,29 +227,38 @@ class _RegisterPageState extends State<RegisterPage> {
               // Confirm Password
               Align(
                 alignment: Alignment.centerLeft,
-                child: Text("Confirm your password",
-                    style: TextStyle(
-                        color: Colors.black87, fontWeight: FontWeight.w500)),
+                child: const Text(
+                  "Confirm your password",
+                  style: TextStyle(color: Colors.black87, fontWeight: FontWeight.w500),
+                ),
               ),
               const SizedBox(height: 6),
               TextField(
                 controller: _confirmPasswordController,
-                obscureText: true,
+                obscureText: _obscureConfirmPassword,
                 onChanged: (_) => validatePasswordMatch(),
                 inputFormatters: [
-                  FilteringTextInputFormatter.allow(
-                      RegExp(r'[a-zA-Z0-9$@!#.&_-]')),
+                  FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9$@!#.&_-]')),
                 ],
                 decoration: InputDecoration(
                   hintText: "********",
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      _obscureConfirmPassword ? Icons.visibility_off : Icons.visibility,
+                      color: Colors.grey,
+                    ),
+                    onPressed: () =>
+                        setState(() => _obscureConfirmPassword = !_obscureConfirmPassword),
+                  ),
                   errorText: _passwordError,
                   border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12)),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
               ),
+
               const SizedBox(height: 24),
 
-              // Sign Up button
               _loading
                   ? const CircularProgressIndicator()
                   : SizedBox(
@@ -241,12 +277,9 @@ class _RegisterPageState extends State<RegisterPage> {
                   ),
                 ),
               ),
-
               const SizedBox(height: 16),
               GestureDetector(
-                onTap: () {
-                  Navigator.pop(context);
-                },
+                onTap: () => Navigator.pop(context),
                 child: Text.rich(
                   TextSpan(
                     text: "Already have an account? ",
@@ -254,7 +287,8 @@ class _RegisterPageState extends State<RegisterPage> {
                     children: [
                       TextSpan(
                         text: "Login",
-                        style: TextStyle(color: pink, fontWeight: FontWeight.bold),
+                        style:
+                        TextStyle(color: pink, fontWeight: FontWeight.bold),
                       ),
                     ],
                   ),

@@ -41,6 +41,9 @@ class DatabaseService {
           'userID TEXT PRIMARY KEY, '
           'userName TEXT, '
           'userEmail TEXT, '
+          'userRegDate DATETIME, '
+          'phoneNo TEXT ,'
+          'userStatus TEXT, '
           'profileImgPath TEXT)',
     );
 
@@ -52,32 +55,20 @@ class DatabaseService {
     final db = await _databaseService.database;
 
     var data = await db.rawInsert(
-      'INSERT INTO Users(userID, userName, userEmail, profileImgPath) VALUES (?, ?, ?, ?)',
+      'INSERT INTO Users(userID, userName, userEmail, userRegDate, phoneNo, userStatus, profileImgPath) VALUES (?, ?, ?, ?, ?, ?, ?)',
       [
         user.userID,
         user.userName,
         user.userEmail,
+        user.userRegDate.toIso8601String(),
+        user.phoneNo,
+        user.userStatus,
         user.profileImgPath,
       ],
     );
 
     log('Inserted Delivery $data with ID: ${user.userID}');
   }
-
-
-
-
-  //edit customer details of previous data
-  /*Future editCustomer(Customer customer) async {
-    final db = await _databaseService.database;
-    var data = await db.update(
-      'Customer',
-      customer.toMap(),
-      where: 'custID = ?',
-      whereArgs: [customer.custID],
-    );
-    log('updated $data');
-  }*/
 
 
   // Schedule Details
@@ -89,9 +80,12 @@ class DatabaseService {
     //Profile
     if(user.isEmpty){
       await db.insert("Users", {
-        "userID": "WlplC0rARpPinqk4shN30VEXpVx1",
+        "userID": "xhayPRUx4dfXWkXWQNfb8QBY6Hj2",
         "userName": "peiwen",
         "userEmail": "pwen0331@gmail.com",
+        "userRegDate" : "2025-02-13 12:00:00",
+        "phoneNo" : "",
+        "userStatus" : "A",
         "profileImgPath": "assets/images/profile/Flim2.jpeg"
       });
     }
@@ -106,6 +100,22 @@ class DatabaseService {
       'Users', // ✅ your Users table
       where: 'userEmail = ?', // ✅ lookup by email
       whereArgs: [email],
+      limit: 1,
+    );
+
+    if (result.isNotEmpty) {
+      return Users.fromMap(result.first); // ✅ convert row into Users model
+    }
+    return null; // return null if no user found
+  }
+
+  Future<Users?> getUserByUID(String userID) async {
+    final db = await _databaseService.database;
+
+    final result = await db.query(
+      'Users', // ✅ your Users table
+      where: 'userID = ?', // ✅ lookup by email
+      whereArgs: [userID],
       limit: 1,
     );
 
@@ -131,21 +141,28 @@ class DatabaseService {
     return "Unable to get Part Image Path";
   }
 
-  Future<String> getUIDByEmail(String email) async{
+  //edit user details of previous data
+  Future editUser(Users user) async {
     final db = await _databaseService.database;
-    final result = await db.query(
-      'Profile',
-      columns: ['userId'], // assuming your Part table has an imgPath column
-      where: 'email = ?',
-      whereArgs: [email],
-      limit: 1,
+    var data = await db.update(
+      'Users',
+      user.toMap(),
+      where: 'userID = ?',
+      whereArgs: [user.userID],
     );
-    if (result.isNotEmpty) {
-      return result.first['userId'] as String;
-    }
-    return "Unable to get UserID";
+    log('updated $data');
   }
 
+  //delete user
+  Future deleteUser(String userID) async {
+    final db = await _databaseService.database;
+    var data = await db.delete(
+      'Users',
+      where: 'userID = ?',
+      whereArgs: [userID],
+    );
+    log('updated $data');
+  }
 
 
 }

@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:provider/provider.dart';
 import 'firebase_options.dart';
-import 'login_page.dart';
 import 'database.dart';
+import 'splash_screen.dart';
+import 'user_provider.dart';
+
 
 void main() async {
   final dbservice = await DatabaseService();
@@ -12,7 +15,14 @@ void main() async {
   );
   dbservice.resetDatabase();
   dbservice.initializeData();
-  runApp(const MyApp());
+  runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => UserProvider()),
+      ],
+      child: const MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
@@ -24,7 +34,8 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'Firebase Login Demo',
       theme: ThemeData(primarySwatch: Colors.blue),
-      home: const LoginPage(),
+      home: const SplashScreen(), // Here!!
     );
   }
 }
+

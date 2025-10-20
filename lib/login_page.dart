@@ -2,13 +2,16 @@ import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:io_mom/database.dart';
 import 'package:io_mom/register_page.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'auth_service.dart';
 import 'forget_password.dart';
 import 'otp_page.dart';
 import 'smtp_service.dart';
 import 'home.dart';
+import 'user.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -17,45 +20,17 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
+  final dbService = DatabaseService();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _loading = false;
-  final dbService = DatabaseService();
-
-  bool _emailExists = false;
-  bool _checkingEmail = false;
-  Timer? _debounce;
+  bool _obscurePassword = true;
 
   @override
-  void initState() {
-    super.initState();
-    _emailController.addListener(_onEmailChanged);
-  }
-
-  void _onEmailChanged() {
-    if (_debounce?.isActive ?? false) _debounce!.cancel();
-
-    _debounce = Timer(const Duration(seconds: 1), () async {
-      final email = _emailController.text.trim();
-
-      if (email.isEmpty || !email.contains("@")) {
-        setState(() {
-          _emailExists = false;
-          _checkingEmail = false;
-        });
-        return;
-      }
-
-      setState(() => _checkingEmail = true);
-
-      final user = await dbService.getUserByEmail(email);
-      if (!mounted) return;
-
-      setState(() {
-        _checkingEmail = false;
-        _emailExists = user != null;
-      });
-    });
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
   }
 
   String generateOtp() {
@@ -64,26 +39,24 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Future<void> _login() async {
+    final email = _emailController.text.trim();
+    final password = _passwordController.text.trim();
+
+    if (email.isEmpty || password.isEmpty) {
+      await _showDialog('Login Failed', 'Please fill in both email and password.');
+      return;
+    }
+
     setState(() => _loading = true);
 
     try {
-      if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
-        await _showDialog('Login Failed', 'Please fill in both email and password.');
-        return;
-      }
-
-      if (!_emailExists) {
-        await _showDialog('Login Failed',
-            'User does not exist. Please register before logging in.');
-        return;
-      }
-
-      final userCredential = await FirebaseAuth.instance.signInWithEmailAndPassword(
-        email: _emailController.text.trim(),
-        password: _passwordController.text.trim(),
-      );
+      // Attempt sign-in
+      final userCredential = await FirebaseAuth.instance
+          .signInWithEmailAndPassword(email: email, password: password);
 
       final firebaseUser = userCredential.user;
+
+      // If login successful → send OTP
       if (firebaseUser != null) {
         final otp = generateOtp();
         await sendOtpEmail(firebaseUser.email!.trim(), otp);
@@ -102,8 +75,8 @@ class _LoginPageState extends State<LoginPage> {
           ),
         );
       }
-    } on FirebaseAuthException {
-      await _showDialog('Login Failed', 'The password is incorrect. Please try again.');
+    } on FirebaseAuthException catch (e) {
+        await _showDialog('Login Failed', 'Invalid email or password. Please try again.');
     } catch (e) {
       await _showDialog('Error', 'Unexpected error: $e');
     } finally {
@@ -125,14 +98,6 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   @override
-  void dispose() {
-    _debounce?.cancel();
-    _emailController.dispose();
-    _passwordController.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     const pink = Color(0xFFE91E63);
 
@@ -143,28 +108,27 @@ class _LoginPageState extends State<LoginPage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // Logo
             Image.asset('assets/images/logo/logo.png', height: 120),
             const SizedBox(height: 16),
-
-            // App Name
             const Text.rich(
               TextSpan(
                 children: [
                   TextSpan(
-                      text: "Io",
-                      style: TextStyle(
-                          fontSize: 28, fontWeight: FontWeight.bold, color: Colors.black)),
+                    text: "Io",
+                    style: TextStyle(
+                        fontSize: 28, fontWeight: FontWeight.bold, color: Colors.black),
+                  ),
                   TextSpan(
-                      text: "Mom",
-                      style: TextStyle(
-                          fontSize: 28, fontWeight: FontWeight.bold, color: pink)),
+                    text: "Mom",
+                    style: TextStyle(
+                        fontSize: 28, fontWeight: FontWeight.bold, color: pink),
+                  ),
                 ],
               ),
             ),
             const SizedBox(height: 40),
 
-            // Email label
+            // Email
             Align(
               alignment: Alignment.centerLeft,
               child: Text("E Mail",
@@ -172,53 +136,22 @@ class _LoginPageState extends State<LoginPage> {
                       fontSize: 14, fontWeight: FontWeight.w600, color: Colors.black87)),
             ),
             const SizedBox(height: 6),
-
-            // Email field + status
             TextField(
               controller: _emailController,
               keyboardType: TextInputType.emailAddress,
               decoration: InputDecoration(
                 hintText: "Enter here...",
-                suffixIcon: _checkingEmail
-                    ? const Padding(
-                  padding: EdgeInsets.all(10),
-                  child: SizedBox(
-                      width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)),
-                )
-                    : _emailController.text.isEmpty
-                    ? null
-                    : Icon(
-                  _emailExists ? Icons.check_circle : Icons.error_outline,
-                  color: _emailExists ? Colors.green : Colors.red,
-                ),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                contentPadding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               ),
             ),
 
-            if (_emailController.text.isNotEmpty && !_checkingEmail)
-              Padding(
-                padding: const EdgeInsets.only(top: 4),
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    _emailExists
-                        ? "Email found in system ✓"
-                        : "Email not registered. Please sign up.",
-                    style: TextStyle(
-                      color: _emailExists ? Colors.green : Colors.red,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-              ),
-
             const SizedBox(height: 16),
 
-            // Password label
+            // Password
             Align(
               alignment: Alignment.centerLeft,
               child: Text("Password",
@@ -226,16 +159,24 @@ class _LoginPageState extends State<LoginPage> {
                       fontSize: 14, fontWeight: FontWeight.w600, color: Colors.black87)),
             ),
             const SizedBox(height: 6),
-
             TextField(
               controller: _passwordController,
-              obscureText: true,
+              obscureText: _obscurePassword,
               decoration: InputDecoration(
                 hintText: "********",
+                suffixIcon: IconButton(
+                  icon: Icon(
+                    _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                    color: Colors.grey,
+                  ),
+                  onPressed: () =>
+                      setState(() => _obscurePassword = !_obscurePassword),
+                ),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                contentPadding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               ),
             ),
 
@@ -253,7 +194,6 @@ class _LoginPageState extends State<LoginPage> {
 
             const SizedBox(height: 8),
 
-            // Login Button
             _loading
                 ? const CircularProgressIndicator()
                 : SizedBox(
@@ -275,7 +215,7 @@ class _LoginPageState extends State<LoginPage> {
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Text("Don’t have account? ",
+                const Text("Don’t have an account? ",
                     style: TextStyle(color: Colors.black54)),
                 GestureDetector(
                   onTap: () => Navigator.push(
@@ -296,17 +236,65 @@ class _LoginPageState extends State<LoginPage> {
                 icon: Image.asset('assets/images/logo/google.png', height: 24),
                 label: const Text("Login with Google"),
                 onPressed: () async {
-                  final user = await AuthService().signInWithGoogle();
-                  if (user != null) {
-                    Navigator.pushReplacement(
-                      context,
-                      MaterialPageRoute(builder: (_) => HomePage()),
-                    );
+                  final authService = AuthService();
+                  final user = await authService.signInWithGoogle();
+
+                  if (user == null) {
+                    await _showDialog('Login Cancelled', 'You cancelled Google sign in.');
+                    return;
                   }
+
+                  final email = user.email!;
+                  final uid = user.uid;
+
+                  // 🔎 Step 1: Check if this email exists in Firebase (email/password account)
+                  try {
+                    final methods = await FirebaseAuth.instance.fetchSignInMethodsForEmail(email);
+
+                    if (methods.contains('password')) {
+                      // 🚫 Email already registered using password
+                      final googleSignIn = GoogleSignIn();
+                      await googleSignIn.signOut();
+
+                      await _showDialog(
+                        'Login Failed',
+                        'This email is already registered with a password. Please login using your email and password instead.',
+                      );
+                      return;
+                    }
+                  } catch (e) {
+                    debugPrint("Firebase fetchSignInMethods error: $e");
+                  }
+
+                  // 🔎 Step 2: Check if this email already exists in your local SQLite DB
+                  final existingUser = await dbService.getUserByEmail(email);
+
+                  if (existingUser == null) {
+                    // 🟢 New Google user → insert into DB
+                    final newUser = Users(
+                      userID: uid,
+                      userName: "",
+                      userEmail: email,
+                      userRegDate: DateTime.now(),
+                      phoneNo: "",
+                      userStatus: "A",
+                      profileImgPath: "",
+                    );
+                    await dbService.insertUser(newUser);
+                  }
+
+                  // 💾 Step 3: Save user locally
+                  final prefs = await SharedPreferences.getInstance();
+                  await prefs.setString('userID', uid);
+
+                  // 🏠 Step 4: Navigate to home page
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(builder: (_) => HomePage()),
+                  );
                 },
               ),
             ),
-
           ],
         ),
       ),

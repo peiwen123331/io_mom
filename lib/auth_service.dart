@@ -1,5 +1,8 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:io_mom/database.dart';
+
+import 'user.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -30,4 +33,9 @@ class AuthService {
       return null;
     }
   }
+}
+
+Future<Users?> getUser(String uid) async {
+  final dbService = await DatabaseService();
+    return dbService.getUserByUID(uid);
 }
