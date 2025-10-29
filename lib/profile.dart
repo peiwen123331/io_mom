@@ -15,7 +15,6 @@ import 'user.dart';
 class ProfilePage extends StatefulWidget {
   const ProfilePage({
     super.key
-
   });
 
   @override

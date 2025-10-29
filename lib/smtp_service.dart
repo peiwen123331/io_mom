@@ -4,7 +4,7 @@ import 'package:mailer/smtp_server.dart';
 Future<void> sendOtpEmail(String recipientEmail, String otp) async {
   final smtpServer = gmail(
     'pwen0331@gmail.com',
-    'rpyp iluv xkgm vifa',
+    'loia tlir gpbq xqaq',
   );
 
   final message = Message()

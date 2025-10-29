@@ -112,7 +112,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
         userName: _usernameController.text,
         userEmail: _emailController.text,
         userRegDate: originalRegDate!,
-        phoneNo: _phoneController.text,
+        phoneNo: _phoneController.text.trim(),
         userStatus: _statusController.text == "Active" ? "A" : "I",
         profileImgPath: pickedFile.path,
       );

@@ -22,46 +22,6 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
   String? _emailStatusMsg;
   Timer? _debounce;
 
-  @override
-  void initState() {
-    super.initState();
-    _emailController.addListener(_onEmailChanged);
-  }
-
-  void _onEmailChanged() {
-    // debounce to avoid calling database too often
-    if (_debounce?.isActive ?? false) _debounce!.cancel();
-    _debounce = Timer(const Duration(milliseconds: 600), () async {
-      final email = _emailController.text.trim();
-
-      if (email.isEmpty || !email.contains('@')) {
-        setState(() {
-          _emailValid = false;
-          _emailStatusMsg = null;
-        });
-        return;
-      }
-
-      try {
-        final user = await dbService.getUserByEmail(email);
-        setState(() {
-          if (user != null) {
-            _emailValid = true;
-            _emailStatusMsg = "✅ Account found!";
-          } else {
-            _emailValid = false;
-            _emailStatusMsg = "❌ No account found with this email.";
-          }
-        });
-      } catch (e) {
-        setState(() {
-          _emailValid = false;
-          _emailStatusMsg = "⚠️ Error checking email.";
-        });
-      }
-    });
-  }
-
   Future<void> _sendResetEmail() async {
     final email = _emailController.text.trim();
 

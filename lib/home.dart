@@ -1,7 +1,10 @@
 import 'dart:io';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'article_page.dart';
+import 'calendar_page.dart';
+import 'chat_room_list.dart';
+import 'chatbot.dart';
 import 'custom_bottom.dart';
 import 'profile.dart';
 import 'custom_drawer.dart';
@@ -176,13 +179,67 @@ class _HomePageState extends State<HomePage> {
                   crossAxisSpacing: 12,
                   mainAxisSpacing: 12,
                   physics: const NeverScrollableScrollPhysics(),
-                  children: const [
-                    _FeatureCard(icon: Icons.chat, title: "Chat Room"),
-                    _FeatureCard(icon: Icons.alarm, title: "Reminder"),
-                    _FeatureCard(icon: Icons.mood, title: "Mood"),
-                    _FeatureCard(icon: Icons.smart_toy, title: "AI Chatbot"),
-                    _FeatureCard(icon: Icons.article, title: "Articles"),
-                    _FeatureCard(icon: Icons.local_hospital, title: "Confinement\n     Center"),
+                  children: [
+                    _FeatureCard(
+                      icon: Icons.chat,
+                      title: "Chat Room",
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const ChatListPage()),
+                        );
+                      },
+                    ),
+                    _FeatureCard(
+                      icon: Icons.alarm,
+                      title: "Reminder",
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const CalendarPage()),
+                        );
+                      },
+                    ),
+                    _FeatureCard(
+                      icon: Icons.mood,
+                      title: "Mood",
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const GeminiChatbotPage()),
+                        );
+                      },
+                    ),
+                    _FeatureCard(
+                      icon: Icons.smart_toy,
+                      title: "AI Chatbot",
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const GeminiChatbotPage()),
+                        );
+                      },
+                    ),
+                    _FeatureCard(
+                      icon: Icons.article,
+                      title: "Articles",
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const ArticlesPage()),
+                        );
+                      },
+                    ),
+                    _FeatureCard(
+                      icon: Icons.local_hospital,
+                      title: "Confinement\n     Center",
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const ArticlesPage()),
+                        );
+                      },
+                    ),
                   ],
                 ),
               ],
@@ -222,7 +279,13 @@ class _StatColumn extends StatelessWidget {
 class _FeatureCard extends StatelessWidget {
   final IconData icon;
   final String title;
-  const _FeatureCard({required this.icon, required this.title});
+  final VoidCallback? onTap;
+
+  const _FeatureCard({
+    required this.icon,
+    required this.title,
+    this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -231,19 +294,14 @@ class _FeatureCard extends StatelessWidget {
       elevation: 1,
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
-        onTap: () {
-          // TODO: navigate to feature page
-        },
+        onTap: onTap,
         child: Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(icon, color: Colors.pink, size: 32),
               const SizedBox(height: 8),
-              Text(
-                title,
-                style: const TextStyle(fontSize: 14),
-              ),
+              Text(title, style: const TextStyle(fontSize: 14)),
             ],
           ),
         ),
@@ -251,3 +309,4 @@ class _FeatureCard extends StatelessWidget {
     );
   }
 }
+
