@@ -29,14 +29,11 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
     app: Firebase.app(),
     databaseURL: 'https://io-mom-iot-default-rtdb.asia-southeast1.firebasedatabase.app',
   );
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-
   late ChatUser currentUser = ChatUser(id: widget.SenderID);
   late ChatUser receiverUser = ChatUser(id: widget.ReceiverID);
 
   List<ChatMessage> messages = [];
   late DatabaseReference chatRef;
-  //Stream<DatabaseEvent>? chatStream;
   StreamSubscription<DatabaseEvent>? _chatSubscription;
 
   @override
@@ -61,7 +58,6 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
     try {
       // Check which chat room exists in RTDB
       final snapshotSR = await _rtdb.ref('chats/$roomIDSR/messages').get();
-      final snapshotRS = await _rtdb.ref('chats/$roomIDRS/messages').get();
 
       if (!snapshotSR.exists) {
         chatRef = _rtdb.ref('chats/$roomIDRS/messages');
@@ -95,7 +91,6 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
       print("Error initializing chat: $e");
     }
   }
-
 
   String _getChatRoomID(String senderID, String receiverID) {
     final sortedIDs = [senderID, receiverID]..sort();
@@ -151,64 +146,9 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
     );
 
     dbService.insertChatMessage(cm);
-    /*setState(() {
-      messages.insert(0, chatMessage);
-    });*/
   }
 
-  /*Future<void> _sendMediaMessage() async {
-    final picker = ImagePicker();
-    final file = await picker.pickImage(source: ImageSource.gallery);
-    if (file == null) return;
-    final roomIDSR = _getChatRoomID(widget.SenderID, widget.ReceiverID);
-    final roomIDRS = _getChatRoomID(widget.ReceiverID, widget.SenderID);
-    late final roomID;
-    final timestamp = DateTime.now();
 
-    try {
-      final snapshotSR = await _rtdb.ref('chats/$roomIDSR/messages').get();
-      final snapshotRS = await _rtdb.ref('chats/$roomIDRS/messages').get();
-
-      if (!snapshotSR.exists) {
-        chatRef = _rtdb.ref('chats/$roomIDRS/messages');
-        roomID = roomIDRS;
-      } else if (!snapshotRS.exists) {
-        chatRef = _rtdb.ref('chats/$roomIDSR/messages');
-        roomID = roomIDSR;
-      }
-
-      final ChatMessages cm = ChatMessages(
-          MessageID: roomID,
-          messageContent: '[Image]',
-          SenderID: widget.SenderID,
-          ReceiverID: widget.ReceiverID,
-          time: timestamp);
-
-      // Upload image to Firebase Storage
-      final path = file.path;
-      final fileName = file.name;
-      final List<String>? strList = await dbService.insertMediaChatMessage(cm, fileName, path);
-
-      final chatMessage = ChatMessage(
-        user: ChatUser(id: widget.SenderID),
-        createdAt: timestamp,
-        text: "[Image]",
-        medias: [
-          ChatMedia(
-            url: strList!.elementAt(1),
-            fileName: strList!.elementAt(0),
-            type: MediaType.image,
-          ),
-        ],
-      );
-
-      setState(() {
-        messages.insert(0, chatMessage);
-      });
-    }catch(e){
-      print(e);
-    }
-  }*/
 
   @override
   Widget build(BuildContext context) {

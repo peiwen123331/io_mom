@@ -197,7 +197,7 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
                 Align(
                   alignment: Alignment.centerLeft,
                   child: Text(
-                    "Enter your old password",
+                    "Create your password",
                     style: TextStyle(
                         fontSize: 14,
                         color: Colors.grey.shade800,
@@ -244,14 +244,15 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
                 TextFormField(
                   controller: _newPasswordController,
                   obscureText: _obscureNew,
-                  onChanged: _onNewPasswordChanged,
+                  onChanged: (value) {
+                    _onNewPasswordChanged(value);
+                    setState(() {}); // Refresh rule icons
+                  },
                   decoration: InputDecoration(
                     hintText: "********",
                     suffixIcon: IconButton(
                       icon: Icon(
-                        _obscureNew
-                            ? Icons.visibility_off
-                            : Icons.visibility,
+                        _obscureNew ? Icons.visibility_off : Icons.visibility,
                         color: Colors.grey,
                       ),
                       onPressed: () =>
@@ -263,8 +264,11 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
                     fillColor: const Color(0xFFF9F9F9),
                   ),
                 ),
+                const SizedBox(height: 8),
+                
+                passwordRules(_newPasswordController.text),
 
-                if (_passwordErrors.isNotEmpty)
+                /*if (_passwordErrors.isNotEmpty)
                   Padding(
                     padding: const EdgeInsets.only(top: 8.0),
                     child: Column(
@@ -279,7 +283,7 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
                       )
                           .toList(),
                     ),
-                  ),
+                  ),*/
 
                 const SizedBox(height: 20),
 
@@ -359,4 +363,51 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
       ),
     );
   }
+
+  Widget passwordRules(String password) {
+    bool hasUpper = RegExp(r'[A-Z]').hasMatch(password);
+    bool hasLower = RegExp(r'[a-z]').hasMatch(password);
+    bool hasNumber = RegExp(r'[0-9]').hasMatch(password);
+    bool hasSymbol = RegExp(r'[$@!#.&_-]').hasMatch(password);
+    bool hasMinLength = password.length >= 8;
+    bool hasMaxLength = password.length <= 16;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        ruleItem("At least 8 characters", hasMinLength),
+        ruleItem("At most 16 characters", hasMaxLength),
+        ruleItem("One uppercase letter (A–Z)", hasUpper),
+        ruleItem("One lowercase letter (a–z)", hasLower),
+        ruleItem("One number (0–9)", hasNumber),
+        ruleItem("One special symbol \$@!#.&_-", hasSymbol),
+      ],
+    );
+  }
+
+  Widget ruleItem(String text, bool fulfilled) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        children: [
+          Icon(
+            fulfilled ? Icons.check_circle : Icons.circle_outlined,
+            color: fulfilled ? Colors.green : Colors.grey,
+            size: 18,
+          ),
+          const SizedBox(width: 6),
+          Text(
+            text,
+            style: TextStyle(
+              color: fulfilled ? Colors.green : Colors.grey[700],
+              fontSize: 14,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+
+
 }

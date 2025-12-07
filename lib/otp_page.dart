@@ -2,8 +2,11 @@ import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:io_mom/database.dart';
 import 'package:io_mom/reset_password.dart';
+import 'confinement_center_home_page.dart';
+import 'edit_profile.dart';
 import 'home.dart';
 import 'login_page.dart';
 import 'smtp_service.dart';
@@ -66,6 +69,7 @@ class _OtpPageState extends State<OtpPage> {
     final entered = _enteredOtp.trim();
     late Users users;
     final dbService = DatabaseService();
+    final prefs = await SharedPreferences.getInstance();
 
     if (entered.length != 6) {
       await _showDialog("Error", "Please enter the 6-digit OTP.");
@@ -77,37 +81,52 @@ class _OtpPageState extends State<OtpPage> {
 
       if (widget.isFrom == "Register") {
         try {
-          UserCredential cred =
+          final user = FirebaseAuth.instance.currentUser;
+          /*UserCredential cred =
           await FirebaseAuth.instance.createUserWithEmailAndPassword(
             email: widget.email,
             password: widget.password,
-          );
+          );*/
+          var u = await dbService.getUserByEmail(widget.email.trim());
+          if(u != null){
+            final prefs = await SharedPreferences.getInstance();
+            await prefs.remove("userID");
+            await prefs.remove("CenterID");
+            await prefs.remove("loginType");
 
-          final uid = cred.user!.uid;
+            try {
+
+              final credential = EmailAuthProvider.credential(
+                email: widget.email,
+                password: widget.password,
+              );
+              await user?.reauthenticateWithCredential(credential);
+            } catch (_) {}
+            await _showDialog(
+              "Registration Failed",
+              "This email is already registered. Please login instead.",
+              redirectTo: const LoginPage(),
+            );
+          }
           users = Users(
-            userID: uid,
+            userID: user!.uid,
             userName: "",
             userEmail: widget.email,
             userRegDate: DateTime.timestamp(),
             phoneNo: "",
             userStatus: "A",
             profileImgPath: "",
+            userRole: "",
+            loginType: "P",
+              isPhoneVerify: "F",
           );
 
           dbService.insertUser(users);
 
           await _showDialog("Success", "Registration successful. Please log in.",
-              redirectTo: const LoginPage());
+              redirectTo: LoginPage());
         } on FirebaseAuthException catch (e) {
-          if (e.code == 'email-already-in-use') {
-            await _showDialog(
-              "Registration Failed",
-              "This email is already registered. Please login instead.",
-              redirectTo: const LoginPage(),
-            );
-          } else {
             await _showDialog("Error", e.message ?? "Unknown error");
-          }
         }
       } else if (widget.isFrom == "Login") {
         User? user = FirebaseAuth.instance.currentUser;
@@ -122,11 +141,28 @@ class _OtpPageState extends State<OtpPage> {
         } else {
           print("No user is logged in");
         }
-
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const HomePage()),
-        );
+        var currentUser = await dbService.getUserByUID(user!.uid);
+        if(currentUser!.userRole == 'C'){
+          var cid = await dbService.getConfinementByEmail(widget.email);
+          prefs.setString('CenterID', cid!.CenterID);
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => ConfinementCenterHomePage()),
+          );
+        }else if(currentUser.userRole == ''){
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => EditProfilePage(
+              userID: user.uid,
+              from: 'Splash',
+            )),
+          );
+        }else{
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const HomePage()),
+          );
+        }
 
       } else if (widget.isFrom == "ResetPassword") {
         Navigator.pushAndRemoveUntil(

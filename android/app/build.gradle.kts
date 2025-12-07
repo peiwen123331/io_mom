@@ -10,8 +10,8 @@ plugins {
 
 android {
     namespace = "my.edu.tarumt.io_mom"
-    compileSdk = 31
-    //compileSdk = flutter.compileSdkVersion
+    //compileSdk = 31
+    compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
@@ -32,10 +32,14 @@ android {
         applicationId = "my.edu.tarumt.io_mom"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = 23 //flutter.minSdkVersion
+        minSdk = flutter.minSdkVersion //flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+
+        ndk {
+            abiFilters += listOf("armeabi-v7a", "arm64-v8a", "x86_64")
+        }
     }
 
     buildTypes {
@@ -50,6 +54,7 @@ android {
 //added this dependencies
 dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
+    runtimeOnly("com.microsoft.onnxruntime:onnxruntime-android:1.23.2")
 }
 
 flutter {

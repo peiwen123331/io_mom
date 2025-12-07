@@ -2,9 +2,11 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'article_page.dart';
+import 'ble_health_monitor_page.dart';
 import 'calendar_page.dart';
 import 'chat_room_list.dart';
 import 'chatbot.dart';
+import 'confinement_center_page.dart';
 import 'custom_bottom.dart';
 import 'profile.dart';
 import 'custom_drawer.dart';
@@ -64,7 +66,9 @@ class _HomePageState extends State<HomePage> {
                     onTap: () {
                       Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (_) => const ProfilePage()),
+                        MaterialPageRoute(builder: (_) => const ProfilePage(
+                          from: 'User',
+                        )),
                       );
                     },
                     child: const CircleAvatar(
@@ -83,7 +87,9 @@ class _HomePageState extends State<HomePage> {
                   onTap: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (_) => const ProfilePage()),
+                      MaterialPageRoute(builder: (_) => const ProfilePage(
+                        from: 'User',
+                      )),
                     );
                   },
                   child: CircleAvatar(
@@ -194,10 +200,16 @@ class _HomePageState extends State<HomePage> {
                       icon: Icons.alarm,
                       title: "Reminder",
                       onTap: () {
+
                         Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (_) => const CalendarPage()),
+                          MaterialPageRoute(builder: (_) => CalendarPage(isFrom: '',)),
                         );
+
+                        /*Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => BleHealthMonitor()),
+                        );*/
                       },
                     ),
                     _FeatureCard(
@@ -206,7 +218,9 @@ class _HomePageState extends State<HomePage> {
                       onTap: () {
                         Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (_) => const GeminiChatbotPage()),
+                          MaterialPageRoute(builder: (_) => const CalendarPage(
+                            isFrom: 'Mood'
+                          )),
                         );
                       },
                     ),
@@ -236,7 +250,7 @@ class _HomePageState extends State<HomePage> {
                       onTap: () {
                         Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (_) => const ArticlesPage()),
+                          MaterialPageRoute(builder: (_) => const ConfinementCenterPage()),
                         );
                       },
                     ),

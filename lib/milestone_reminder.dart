@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 class MilestoneReminder{
   final String milReminderID;
   final String mileStoneName;
@@ -20,8 +22,16 @@ class MilestoneReminder{
       milReminderID: data['milReminderID'],
       mileStoneName: data['mileStoneName'],
       description: data['description'],
-      startDate: DateTime.tryParse(data['startDate']) ?? DateTime.now(),
-      endDate: DateTime.tryParse(data['endDate']) ?? DateTime.now(),
+      startDate: data['startDate'] is Timestamp
+          ? (data['startDate'] as Timestamp).toDate()
+          : (data['startDate'] is String
+          ? DateTime.tryParse(data['startDate']) ?? DateTime.now()
+          : DateTime.now()),
+      endDate: data['endDate'] is Timestamp
+          ? (data['endDate'] as Timestamp).toDate()
+          : (data['endDate'] is String
+          ? DateTime.tryParse(data['endDate']) ?? DateTime.now()
+          : DateTime.now()),
       userID: data['userID'],
     );
   }

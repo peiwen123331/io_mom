@@ -4,26 +4,25 @@ import 'package:flutter_gemini/flutter_gemini.dart';
 import 'package:provider/provider.dart';
 import 'firebase_options.dart';
 import 'database.dart';
-import 'mood.dart';
 import 'splash_screen.dart';
-import 'user.dart';
 import 'user_provider.dart';
-import 'package:timezone/data/latest_all.dart' as tz;
+import 'package:timezone/data/latest_all.dart' as tzData;
 import 'package:timezone/timezone.dart' as tz;
 
 
 void main() async {
   final dbservice = await DatabaseService();
   WidgetsFlutterBinding.ensureInitialized();
+  tzData.initializeTimeZones();
+  tz.setLocalLocation(tz.getLocation('Asia/Kuala_Lumpur'));
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
-  tz.initializeTimeZones();
-  tz.setLocalLocation(tz.getLocation('Asia/Kuala_Lumpur'));
   Gemini.init(apiKey: "AIzaSyDo510C-f2gnYn_83sUcmv7aWwwMr0BECk",
     disableAutoUpdateModelName: false,);
 
   //dbservice.resetDatabase();
+  //dbservice.initDatabase();
   //dbservice.initializeData();
 
   runApp(

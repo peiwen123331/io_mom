@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 class ChatMessages{
 
   final String MessageID;
@@ -21,7 +23,11 @@ factory ChatMessages.fromMap(Map<String, dynamic> data){
       messageContent: data['messageContent'],
       SenderID: data['SenderID'],
       ReceiverID: data['ReceiverID'],
-      time: DateTime.tryParse(data['time']) ?? DateTime.now(),
+      time:data['time'] is Timestamp
+          ? (data['time'] as Timestamp).toDate()
+          : (data['time'] is String
+          ? DateTime.tryParse(data['time']) ?? DateTime.now()
+          : DateTime.now()),
   );
 }
 

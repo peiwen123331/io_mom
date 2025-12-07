@@ -27,13 +27,17 @@ class CustomBottomNav extends StatelessWidget {
       case 2:
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => const CalendarPage()),
+          MaterialPageRoute(builder: (_) => const CalendarPage(
+            isFrom: '',
+          )),
         );
         break;
       case 3:
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => const ProfilePage()),
+          MaterialPageRoute(builder: (_) => const ProfilePage(
+            from: 'User',
+          )),
         );
         break;
     }

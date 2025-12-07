@@ -21,6 +21,10 @@ class UserProvider extends ChangeNotifier {
         phoneNo: _user!.phoneNo,
         userStatus: _user!.userStatus,
         profileImgPath: path,
+        userRole: _user!.userRole,
+        loginType: _user!.loginType,
+        pregnantDate: _user!.pregnantDate,
+        isPhoneVerify: _user!.isPhoneVerify,
       );
       notifyListeners();
     }

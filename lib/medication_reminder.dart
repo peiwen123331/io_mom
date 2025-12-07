@@ -1,8 +1,9 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 class MedicationReminder{
   final String medReminderID;
   final String medicationName;
   final double dosage;
-  final int frequency;
   final int repeatDuration;
   final DateTime startTime;
   late final DateTime? lastConfirmedDate;
@@ -12,7 +13,6 @@ class MedicationReminder{
     required this.medReminderID,
     required this.medicationName,
     required this.dosage,
-    required this.frequency,
     required this.repeatDuration,
     required this.startTime,
     this.lastConfirmedDate,
@@ -24,10 +24,17 @@ class MedicationReminder{
       medReminderID: data['medReminderID'],
       medicationName: data['medicationName'],
       dosage: data['dosage'],
-      frequency: data['frequency'],
       repeatDuration: data['repeatDuration'],
-      startTime: DateTime.tryParse(data['startTime']) ?? DateTime.now(),
-      lastConfirmedDate: DateTime.tryParse(data['lastConfirmedDate']) ?? DateTime.now(),
+      startTime: data['startTime'] is Timestamp
+          ? (data['startTime'] as Timestamp).toDate()
+          : (data['startTime'] is String
+          ? DateTime.tryParse(data['startTime']) ?? DateTime.now()
+          : DateTime.now()),
+      lastConfirmedDate: data['lastConfirmedDate'] is Timestamp
+          ? (data['lastConfirmedDate'] as Timestamp).toDate()
+          : (data['lastConfirmedDate'] is String
+          ? DateTime.tryParse(data['lastConfirmedDate']) ?? DateTime.now()
+          : DateTime.now()),
       userID: data['userID'],
     );
   }
@@ -39,7 +46,6 @@ class MedicationReminder{
       'medReminderID': medReminderID,
       'medicationName': medicationName,
       'dosage': dosage,
-      'frequency': frequency,
       'repeatDuration': repeatDuration,
       'startTime': startTime.toIso8601String(),
       'lastConfirmedDate': lastConfirmedDate?.toIso8601String(),

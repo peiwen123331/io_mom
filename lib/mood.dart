@@ -1,5 +1,7 @@
 
 
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 class Mood{
   final String MoodID;
   final String MoodDesc;
@@ -21,7 +23,11 @@ class Mood{
     return Mood(
         MoodID: data['MoodID'],
         MoodDesc: data['MoodDesc'],
-        MoodDate: DateTime.tryParse(data['MoodDate']) ?? DateTime.now(),
+        MoodDate: data['MoodDate'] is Timestamp
+            ? (data['MoodDate'] as Timestamp).toDate()
+            : (data['MoodDate'] is String
+            ? DateTime.tryParse(data['MoodDate']) ?? DateTime.now()
+            : DateTime.now()),
         MoodStatus: data['MoodStatus'],
         userID: data['userID'],
         MoodTypeID: data['MoodTypeID'],

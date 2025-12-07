@@ -1,7 +1,14 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:io_mom/database.dart';
+import 'booking_history.dart';
+import 'confinement_center.dart';
+import 'package_detail_page.dart';
+import 'home.dart';
 
 class ConfinementCenterPage extends StatefulWidget {
-  const ConfinementCenterPage({Key? key}) : super(key: key);
+  const ConfinementCenterPage({super.key});
 
   @override
   State<ConfinementCenterPage> createState() => _ConfinementCenterPageState();
@@ -9,33 +16,45 @@ class ConfinementCenterPage extends StatefulWidget {
 
 class _ConfinementCenterPageState extends State<ConfinementCenterPage> {
   final TextEditingController _searchController = TextEditingController();
+  final dbService = DatabaseService();
+
+  List<ConfinementCenter> centers = [];
+  List<ConfinementCenter> filteredCenters = [];
+  bool isLoading = true;
   String query = '';
 
-  final List<Map<String, String>> centers = [
-    {
-      'name': 'Gloria Confinement Centre',
-      'address': '133, Jln Macalister, 10400 George Town, Pulau Pinang',
-      'image': 'assets/images/gloria.jpg',
-    },
-    {
-      'name': 'Codrington Postnatal Retreat',
-      'address': '26P, Lebuh Codrington, Pulau Tikus, 10350 George Town, Pulau Pinang',
-      'image': 'assets/images/codrington.jpg',
-    },
-    {
-      'name': 'Spink Confinement & Baby Care',
-      'address': '68, Lebuhraya Codrington, Pulau Tikus, 10350 George Town, Pulau Pinang',
-      'image': 'assets/images/spink.jpg',
-    },
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _loadCenters();
+  }
+
+  Future<void> _loadCenters() async {
+    try {
+      final data = await dbService.getAllCenter();
+      setState(() {
+        centers = data!;
+        filteredCenters = data;
+        isLoading = false;
+      });
+    } catch (e) {
+      debugPrint("Error loading centers: $e");
+      setState(() => isLoading = false);
+    }
+  }
+
+  void _searchCenters(String value) {
+    setState(() {
+      query = value;
+      filteredCenters = centers
+          .where((center) =>
+          center.CenterName!.toLowerCase().contains(value.toLowerCase()))
+          .toList();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
-    final filteredCenters = centers
-        .where((center) =>
-        center['name']!.toLowerCase().contains(query.toLowerCase()))
-        .toList();
-
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -43,7 +62,8 @@ class _ConfinementCenterPageState extends State<ConfinementCenterPage> {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () => Navigator.push(context, MaterialPageRoute(
+              builder: (_)=>HomePage())),
         ),
         title: const Text(
           "Confinement Center",
@@ -54,6 +74,16 @@ class _ConfinementCenterPageState extends State<ConfinementCenterPage> {
           ),
         ),
         centerTitle: true,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.history, color: Colors.black),
+            tooltip: 'View Booking History',
+            onPressed: () {
+              Navigator.push(context, MaterialPageRoute(builder: (_)=> BookingHistoryPage()
+              ));
+            },
+          ),
+        ],
       ),
       body: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -74,13 +104,17 @@ class _ConfinementCenterPageState extends State<ConfinementCenterPage> {
                   border: InputBorder.none,
                   contentPadding: EdgeInsets.symmetric(vertical: 12),
                 ),
-                onChanged: (value) => setState(() => query = value),
+                onChanged: _searchCenters,
               ),
             ),
 
-            // 📋 List of Centers
+            // 📋 Loading or List
             Expanded(
-              child: ListView.builder(
+              child: isLoading
+                  ? const Center(child: CircularProgressIndicator(color: Colors.pinkAccent))
+                  : filteredCenters.isEmpty
+                  ? const Center(child: Text("No centers found."))
+                  : ListView.builder(
                 itemCount: filteredCenters.length,
                 itemBuilder: (context, index) {
                   final center = filteredCenters[index];
@@ -88,21 +122,21 @@ class _ConfinementCenterPageState extends State<ConfinementCenterPage> {
                     padding: const EdgeInsets.only(bottom: 14),
                     child: InkWell(
                       onTap: () {
-                        // navigate to details page if needed
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => PackageDetailPage(
+                              CenterID: center.CenterID!,
+                            ),
+                          ),
+                        );
                       },
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(16),
                         child: Stack(
                           children: [
-                            // 🖼 Background Image
-                            Image.asset(
-                              center['image']!,
-                              width: double.infinity,
-                              height: 180,
-                              fit: BoxFit.cover,
-                            ),
-
-                            // 🖋 Overlay (Text)
+                            buildCenterImage(center.centerImgPath),
+                            // 🖋 Overlay Text
                             Positioned(
                               bottom: 0,
                               left: 0,
@@ -113,10 +147,11 @@ class _ConfinementCenterPageState extends State<ConfinementCenterPage> {
                                   color: Colors.black.withOpacity(0.4),
                                 ),
                                 child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  crossAxisAlignment:
+                                  CrossAxisAlignment.start,
                                   children: [
                                     Text(
-                                      center['name']!,
+                                      center.CenterName ?? "Unnamed Center",
                                       style: const TextStyle(
                                         color: Colors.white,
                                         fontWeight: FontWeight.bold,
@@ -125,7 +160,7 @@ class _ConfinementCenterPageState extends State<ConfinementCenterPage> {
                                     ),
                                     const SizedBox(height: 4),
                                     Text(
-                                      center['address']!,
+                                      center.location ?? "Location not available",
                                       style: const TextStyle(
                                         color: Colors.white70,
                                         fontSize: 13,
@@ -148,4 +183,60 @@ class _ConfinementCenterPageState extends State<ConfinementCenterPage> {
       ),
     );
   }
+
+  Widget buildCenterImage(String? path) {
+    if (path == null || path.isEmpty) {
+      return Image.asset(
+        "assets/images/confinement_center/CC0001.jpg",
+        width: double.infinity,
+        height: 180,
+        fit: BoxFit.cover,
+      );
+    }
+
+    // Asset image (like assets/images/xxx)
+    if (path.startsWith("assets/")) {
+      return Image.asset(
+        path,
+        width: double.infinity,
+        height: 180,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) {
+          return Image.asset(
+            "assets/images/confinement_center/CC0001.jpg",
+            width: double.infinity,
+            height: 180,
+            fit: BoxFit.cover,
+          );
+        },
+      );
+    }
+
+    // File image
+    final file = File(path);
+    if (!file.existsSync()) {
+      return Image.asset(
+        "assets/images/confinement_center/CC0001.jpg",
+        width: double.infinity,
+        height: 180,
+        fit: BoxFit.cover,
+      );
+    }
+
+    return Image.file(
+      file,
+      width: double.infinity,
+      height: 180,
+      fit: BoxFit.cover,
+      errorBuilder: (_, __, ___) {
+        return Image.asset(
+          "assets/images/confinement_center/CC0001.jpg",
+          width: double.infinity,
+          height: 180,
+          fit: BoxFit.cover,
+        );
+      },
+    );
+  }
+
 }

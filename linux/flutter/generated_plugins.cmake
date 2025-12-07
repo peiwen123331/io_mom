@@ -4,6 +4,9 @@
 
 list(APPEND FLUTTER_PLUGIN_LIST
   file_selector_linux
+  flutter_onnxruntime
+  flutter_timezone
+  printing
   url_launcher_linux
 )
 
